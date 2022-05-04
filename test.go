@@ -1,37 +1,48 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 )
 
-var requests int = 1000
-
 func main() {
-	if len(os.Args) < 2 || len(os.Args) > 2 {
-		fmt.Println("Kindly provide the URL as input")
-		fmt.Println("Usage: go run test.go https://google.com")
+	url := flag.String("url", "", "URL to test")
+	requests := flag.Int("requests", 1000, "Number of requests to send")
+	request_type := flag.String("request-type", "GET", "Type of request to send")
+	flag.Parse()
+	fmt.Println(*url, *request_type, *requests)
+	if len(*url) == 0 {
+		fmt.Println("URL is required!")
+		flag.PrintDefaults()
 		os.Exit(1)
 	}
-	url := os.Args[1]
-	fmt.Printf("Checking availability of %s\n", url)
-	_, err := make_request(url)
+	fmt.Printf("Checking availability of %s\n", *url)
+	_, err := make_request(*url, *request_type)
 	if err != nil {
 		log.Fatal(err)
 	} else {
 		fmt.Println("Starting rate limit test...")
-		fmt.Printf("Sending %d requests to %s\n", requests, url)
+		fmt.Printf("Sending %d requests to %s\n", *requests, *url)
 	}
-	for i := 0; i < requests; i++ {
-		make_request(url)
+	for i := 0; i < *requests; i++ {
+		make_request(*url, *request_type)
 	}
 }
 
-// make basic GET request
-func make_request(url string) (http.Response, error) {
-	response, err := http.Get(url)
+func make_request(url string, request_type string) (http.Response, error) {
+	var response *http.Response
+	var err error
+	if request_type == "GET" {
+		response, err = http.Get(url)
+	} else if request_type == "POST" {
+		body, _ := json.Marshal(map[string]string{"test": "test"})
+		response, err = http.Post(url, "application/json", bytes.NewBuffer(body))
+	}
 	if err != nil {
 		return http.Response{}, err
 
