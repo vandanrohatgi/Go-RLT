@@ -8,7 +8,25 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 )
+
+func make_request(url string, request_type string) (http.Response, error) {
+	var response *http.Response
+	var err error
+	if request_type == "GET" {
+		response, err = http.Get(url)
+	} else if request_type == "POST" {
+		body, _ := json.Marshal(map[string]string{"test": "test"})
+		response, err = http.Post(url, "application/json", bytes.NewBuffer(body))
+	}
+	if err != nil {
+		return http.Response{}, err
+
+	} else {
+		return *response, nil
+	}
+}
 
 func main() {
 	url := flag.String("url", "", "URL to test")
@@ -29,24 +47,13 @@ func main() {
 		fmt.Println("Starting rate limit test...")
 		fmt.Printf("Sending %d requests to %s\n", *requests, *url)
 	}
+	var wg sync.WaitGroup
 	for i := 0; i < *requests; i++ {
-		make_request(*url, *request_type)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			make_request(*url, *request_type)
+		}()
 	}
-}
-
-func make_request(url string, request_type string) (http.Response, error) {
-	var response *http.Response
-	var err error
-	if request_type == "GET" {
-		response, err = http.Get(url)
-	} else if request_type == "POST" {
-		body, _ := json.Marshal(map[string]string{"test": "test"})
-		response, err = http.Post(url, "application/json", bytes.NewBuffer(body))
-	}
-	if err != nil {
-		return http.Response{}, err
-
-	} else {
-		return *response, nil
-	}
+	wg.Wait()
 }
